@@ -1,5 +1,6 @@
 const Attack = artifacts.require('Attack');
 const AttackWithEmptyFB = artifacts.require('AttackWithEmptyFB');
+const AttackWithoutFB = artifacts.require('AttackWithoutFB');
 const EtherStore = artifacts.require('EtherStore');
 const BN = web3.utils.BN;
 const v50 = new BN(50).mul(new BN(10).pow(new BN(18)));
@@ -7,7 +8,7 @@ const v40 = new BN(40).mul(new BN(10).pow(new BN(18)));
 const v1 = new BN(1).mul(new BN(10).pow(new BN(18)));
 
 let deploy;
-let atkInst, esInst, atkwefbInst;
+let atkInst, esInst, atkwefbInst,atkwoutInst;
 
 contract('Test contract', async (accounts) => {
     before("init...   -> success", async () => {
@@ -36,6 +37,14 @@ contract('Test contract', async (accounts) => {
             atkwefbInst = await AttackWithEmptyFB.at(deploy.address);
             console.log("----------------------------------------------");
             console.log(atkwefbInst);
+
+          deploy = await AttackWithoutFB.new(esInst.address,{from:accounts[1]});
+          console.log("====================deploy4===================");
+          console.log("----------------------------------------------");
+          console.log(deploy);
+          atkwoutInst = await AttackWithoutFB.at(deploy.address);
+          console.log("----------------------------------------------");
+          console.log(atkwoutInst);
 
         } catch (err) {
             assert.fail(err);
@@ -112,5 +121,35 @@ contract('Test contract', async (accounts) => {
             assert.fail(err.toString());
         }
     });
+
+  /**
+   * by send
+   * without fall back :                  Send failure, can NOT receive coin
+   * with empty content fall back(payable):        AttackWithoutFB contract can receive coin
+   * with empty content fall back(NOT payable):    AttackWithoutFB contract can NOT receive coin
+   * wit fall back(payable), revert:      AttackWithoutFB contract can NOT receive coin
+   */
+  it('Attack transfer: using send without fallback', async () => {
+    try {
+      console.log("esInst.address : "+ esInst.address);
+      let beforeBalance = await web3.eth.getBalance(esInst.address);
+      console.log("beforeBalance contrac Store "+ web3.utils.fromWei(beforeBalance));
+
+      console.log("atkwoutInst.address "+ atkwoutInst.address);
+      let beforeBalanceAtk = await web3.eth.getBalance(atkwoutInst.address);
+      console.log("beforeBalanceAtk  "+ web3.utils.fromWei(beforeBalanceAtk));
+
+      await debug(atkwoutInst.attackEtherStoreForSend({from:accounts[1],value:v1}));
+
+      let afterBalance = await web3.eth.getBalance(esInst.address);
+      console.log("afterBalance contrac Store "+web3.utils.fromWei(afterBalance));
+
+      let afterBalanceAtk = await web3.eth.getBalance(atkwoutInst.address);
+      console.log("afterBalanceAtk  "+web3.utils.fromWei(afterBalanceAtk));
+
+    } catch (err) {
+      assert.fail(err.toString());
+    }
+  });
 
 });
